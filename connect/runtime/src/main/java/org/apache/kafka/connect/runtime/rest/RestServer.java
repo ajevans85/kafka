@@ -227,23 +227,26 @@ public class RestServer {
      * server, unless overrides for advertised hostname and/or port are provided via configs.
      */
     public URI advertisedUrl() {
-        UriBuilder builder = UriBuilder.fromUri(jettyServer.getURI());
+        String advertisedHostname = config.getString(WorkerConfig.REST_ADVERTISED_HOST_NAME_CONFIG);
+        Integer advertisedPort = config.getInt(WorkerConfig.REST_ADVERTISED_PORT_CONFIG);
 
         String advertisedSecurityProtocol = determineAdvertisedProtocol();
         ServerConnector serverConnector = findConnector(advertisedSecurityProtocol);
-        builder.scheme(advertisedSecurityProtocol);
 
-        String advertisedHostname = config.getString(WorkerConfig.REST_ADVERTISED_HOST_NAME_CONFIG);
+        UriBuilder builder;
         if (advertisedHostname != null && !advertisedHostname.isEmpty())
-            builder.host(advertisedHostname);
+            builder = UriBuilder.fromUri(String.format("%s://%s/", advertisedSecurityProtocol, advertisedHostname));
         else if (serverConnector != null && serverConnector.getHost() != null && serverConnector.getHost().length() > 0)
-            builder.host(serverConnector.getHost());
+            builder = UriBuilder.fromUri(String.format("%s://%s/", advertisedSecurityProtocol, serverConnector.getHost()));
+        else
+            builder = UriBuilder.fromUri(String.format("%s://%s/", advertisedSecurityProtocol, jettyServer.getURI().getHost()));
 
-        Integer advertisedPort = config.getInt(WorkerConfig.REST_ADVERTISED_PORT_CONFIG);
         if (advertisedPort != null)
             builder.port(advertisedPort);
         else if (serverConnector != null)
             builder.port(serverConnector.getPort());
+        else
+            builder.port(jettyServer.getURI().getPort());
 
         log.info("Advertised URI: {}", builder.build());
 
